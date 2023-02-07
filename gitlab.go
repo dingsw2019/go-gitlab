@@ -615,6 +615,66 @@ func (c *Client) NewRequest(method, path string, opt interface{}, options []Requ
 	return req, nil
 }
 
+func (c *Client) NewClientRequest(method, path string, opt interface{}, options []RequestOptionFunc) (*retryablehttp.Request, error) {
+	u := *c.baseURL
+	unescaped, err := url.PathUnescape(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the encoded path data
+	u.RawPath = path
+	u.Path = unescaped
+
+	// Create a request specific headers map.
+	reqHeaders := make(http.Header)
+	reqHeaders.Set("Accept", "application/json")
+
+	if c.UserAgent != "" {
+		reqHeaders.Set("User-Agent", c.UserAgent)
+	}
+
+	var body interface{}
+	switch {
+	case method == http.MethodPost || method == http.MethodPut:
+		reqHeaders.Set("Content-Type", "application/json")
+
+		if opt != nil {
+			body, err = json.Marshal(opt)
+			if err != nil {
+				return nil, err
+			}
+		}
+	case opt != nil:
+		q, err := query.Values(opt)
+		if err != nil {
+			return nil, err
+		}
+		u.RawQuery = q.Encode()
+	}
+
+	req, err := retryablehttp.NewRequest(method, u.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, fn := range append(c.defaultRequestOptions, options...) {
+		if fn == nil {
+			continue
+		}
+		if err := fn(req); err != nil {
+			return nil, err
+		}
+	}
+
+	// Set the request specific headers.
+	for k, v := range reqHeaders {
+		req.Header[k] = v
+	}
+
+	return req, nil
+}
+
 // UploadRequest creates an API request for uploading a file. The method
 // expects a relative URL path that will be resolved relative to the base
 // URL of the Client. Relative URL paths should always be specified without

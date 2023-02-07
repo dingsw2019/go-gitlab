@@ -173,6 +173,58 @@ func TestCheckResponse(t *testing.T) {
 	}
 }
 
+func TestNewClientResponse(t *testing.T) {
+	c, err := NewClient("")
+	if err != nil {
+		t.Fatalf("Failed to create client: %v", err)
+	}
+
+	req, err := c.NewClientRequest(http.MethodGet, "test", nil, nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	resp := &http.Response{
+		Request:    req.Request,
+		StatusCode: http.StatusBadRequest,
+		Body: io.NopCloser(strings.NewReader(`
+		{
+			"message": {
+				"prop1": [
+					"message 1",
+					"message 2"
+				],
+				"prop2":[
+					"message 3"
+				],
+				"embed1": {
+					"prop3": [
+						"msg 1",
+						"msg2"
+					]
+				},
+				"embed2": {
+					"prop4": [
+						"some msg"
+					]
+				}
+			},
+			"error": "message 1"
+		}`)),
+	}
+
+	errResp := CheckResponse(resp)
+	if errResp == nil {
+		t.Fatal("Expected error response.")
+	}
+
+	want := "GET https://gitlab.com/test: 400 {error: message 1}, {message: {embed1: {prop3: [msg 1, msg2]}}, {embed2: {prop4: [some msg]}}, {prop1: [message 1, message 2]}, {prop2: [message 3]}}"
+
+	if errResp.Error() != want {
+		t.Errorf("Expected error: %s, got %s", want, errResp.Error())
+	}
+}
+
 func TestCheckResponseOnUnknownErrorFormat(t *testing.T) {
 	c, err := NewClient("")
 	if err != nil {
