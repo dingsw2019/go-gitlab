@@ -76,6 +76,14 @@ func TestProjectMembersService_ListAllProjectMembers(t *testing.T) {
 				"avatar_url": "https://www.gravatar.com/avatar/c2525a7f58ae3776070e44c106c48e15?s=80&d=identicon",
 				"web_url": "http://192.168.1.8:3000/root",
 				"access_level": 30,
+			    "created_by": {
+					"id": 2,
+					"username": "john_doe",
+					"name": "John Doe",
+					"state": "active",
+					"avatar_url": "https://www.gravatar.com/avatar/c2525a7f58ae3776070e44c106c48e15?s=80&d=identicon",
+					"web_url": "http://192.168.1.8:3000/root"
+			  	},
 				"group_saml_identity": null
 			  }
 			]
@@ -91,6 +99,14 @@ func TestProjectMembersService_ListAllProjectMembers(t *testing.T) {
 		AccessLevel: 30,
 		WebURL:      "http://192.168.1.8:3000/root",
 		AvatarURL:   "https://www.gravatar.com/avatar/c2525a7f58ae3776070e44c106c48e15?s=80&d=identicon",
+		CreatedBy: &ProjectMemberCreatedBy{
+			ID:        2,
+			Username:  "john_doe",
+			Name:      "John Doe",
+			State:     "active",
+			AvatarURL: "https://www.gravatar.com/avatar/c2525a7f58ae3776070e44c106c48e15?s=80&d=identicon",
+			WebURL:    "http://192.168.1.8:3000/root",
+		},
 	}}
 
 	pms, resp, err := client.ProjectMembers.ListAllProjectMembers(1, nil, nil)
