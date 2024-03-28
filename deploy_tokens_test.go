@@ -36,6 +36,8 @@ func TestListAllDeployTokens(t *testing.T) {
 		"name": "MyToken",
 		"username": "gitlab+deploy-token-1",
 		"expires_at": "2020-02-14T00:00:00.000Z",
+		"revoked": true,
+		"expired": true,
 		"scopes": [
 			"read_repository",
 			"read_registry"
@@ -58,6 +60,8 @@ func TestListAllDeployTokens(t *testing.T) {
 			Name:      "MyToken",
 			Username:  "gitlab+deploy-token-1",
 			ExpiresAt: &wantExpiresAt,
+			Revoked:   true,
+			Expired:   true,
 			Scopes: []string{
 				"read_repository",
 				"read_registry",
@@ -180,8 +184,8 @@ func TestCreateProjectDeployToken(t *testing.T) {
 	expiresAt := time.Date(2021, 0o1, 0o1, 0, 0, 0, 0, time.UTC)
 
 	deployToken, _, err := client.DeployTokens.CreateProjectDeployToken(5, &CreateProjectDeployTokenOptions{
-		Name:      String("My deploy token"),
-		Username:  String("custom-user"),
+		Name:      Ptr("My deploy token"),
+		Username:  Ptr("custom-user"),
 		ExpiresAt: &expiresAt,
 		Scopes: &[]string{
 			"read_repository",
@@ -338,8 +342,8 @@ func TestCreateGroupDeployToken(t *testing.T) {
 	expiresAt := time.Date(2021, 0o1, 0o1, 0, 0, 0, 0, time.UTC)
 
 	deployToken, _, err := client.DeployTokens.CreateGroupDeployToken(5, &CreateGroupDeployTokenOptions{
-		Name:      String("My deploy token"),
-		Username:  String("custom-user"),
+		Name:      Ptr("My deploy token"),
+		Username:  Ptr("custom-user"),
 		ExpiresAt: &expiresAt,
 		Scopes: &[]string{
 			"read_repository",

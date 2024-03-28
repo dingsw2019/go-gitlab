@@ -92,6 +92,35 @@ func TestDeleteIssue(t *testing.T) {
 	}
 }
 
+func TestReorderIssue(t *testing.T) {
+	mux, client := setup(t)
+
+	mux.HandleFunc("/api/v4/projects/1/issues/5/reorder", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPut)
+		fmt.Fprint(w, `{"id":1, "title" : "Reordered issue", "description": "This is the description of a reordered issue", "author" : {"id" : 1, "name": "corrie"}, "assignees":[{"id":1}]}`)
+	})
+
+	afterID := 100
+	opt := ReorderIssueOptions{MoveAfterID: &afterID}
+
+	issue, _, err := client.Issues.ReorderIssue("1", 5, &opt)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	want := &Issue{
+		ID:          1,
+		Title:       "Reordered issue",
+		Description: "This is the description of a reordered issue",
+		Author:      &IssueAuthor{ID: 1, Name: "corrie"},
+		Assignees:   []*IssueAssignee{{ID: 1}},
+	}
+
+	if !reflect.DeepEqual(want, issue) {
+		t.Errorf("Issues.ReorderIssue returned %+v, want %+v", issue, want)
+	}
+}
+
 func TestMoveIssue(t *testing.T) {
 	mux, client := setup(t)
 
@@ -100,7 +129,7 @@ func TestMoveIssue(t *testing.T) {
 		mustWriteHTTPResponse(t, w, "testdata/issue_move.json")
 	})
 
-	issue, _, err := client.Issues.MoveIssue("1", 11, &MoveIssueOptions{ToProjectID: Int(5)})
+	issue, _, err := client.Issues.MoveIssue("1", 11, &MoveIssueOptions{ToProjectID: Ptr(5)})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -173,7 +202,7 @@ func TestListIssues(t *testing.T) {
 	})
 
 	listProjectIssue := &ListIssuesOptions{
-		AuthorID:   Int(0o1),
+		AuthorID:   Ptr(0o1),
 		AssigneeID: AssigneeID(0o2),
 	}
 
@@ -239,7 +268,7 @@ func TestListIssuesWithLabelDetails(t *testing.T) {
 	})
 
 	listProjectIssue := &ListIssuesOptions{
-		AuthorID:   Int(0o1),
+		AuthorID:   Ptr(0o1),
 		AssigneeID: AssigneeID(0o2),
 	}
 
@@ -283,8 +312,8 @@ func TestListIssuesSearchInTitle(t *testing.T) {
 	})
 
 	listProjectIssue := &ListIssuesOptions{
-		Search: String("Title"),
-		In:     String("title"),
+		Search: Ptr("Title"),
+		In:     Ptr("title"),
 	}
 
 	issues, _, err := client.Issues.ListIssues(listProjectIssue)
@@ -321,8 +350,8 @@ func TestListIssuesSearchInDescription(t *testing.T) {
 	})
 
 	listProjectIssue := &ListIssuesOptions{
-		Search: String("description"),
-		In:     String("description"),
+		Search: Ptr("description"),
+		In:     Ptr("description"),
 	}
 
 	issues, _, err := client.Issues.ListIssues(listProjectIssue)
@@ -367,7 +396,7 @@ func TestListIssuesSearchByIterationID(t *testing.T) {
 	})
 
 	listProjectIssue := &ListIssuesOptions{
-		IterationID: Int(90),
+		IterationID: Ptr(90),
 	}
 
 	issues, _, err := client.Issues.ListIssues(listProjectIssue)
@@ -404,7 +433,7 @@ func TestListProjectIssues(t *testing.T) {
 	})
 
 	listProjectIssue := &ListProjectIssuesOptions{
-		AuthorID:   Int(0o1),
+		AuthorID:   Ptr(0o1),
 		AssigneeID: AssigneeID(0o2),
 	}
 	issues, _, err := client.Issues.ListProjectIssues("1", listProjectIssue)
@@ -450,7 +479,7 @@ func TestListProjectIssuesSearchByIterationID(t *testing.T) {
 	})
 
 	listProjectIssue := &ListProjectIssuesOptions{
-		IterationID: Int(90),
+		IterationID: Ptr(90),
 	}
 
 	issues, _, err := client.Issues.ListProjectIssues(1, listProjectIssue)
@@ -487,8 +516,8 @@ func TestListGroupIssues(t *testing.T) {
 	})
 
 	listGroupIssue := &ListGroupIssuesOptions{
-		State:      String("Open"),
-		AuthorID:   Int(0o1),
+		State:      Ptr("Open"),
+		AuthorID:   Ptr(0o1),
 		AssigneeID: AssigneeID(0o2),
 	}
 
@@ -535,7 +564,7 @@ func TestListGroupIssuesSearchByIterationID(t *testing.T) {
 	})
 
 	listProjectIssue := &ListGroupIssuesOptions{
-		IterationID: Int(90),
+		IterationID: Ptr(90),
 	}
 
 	issues, _, err := client.Issues.ListGroupIssues(1, listProjectIssue)
@@ -571,8 +600,8 @@ func TestCreateIssue(t *testing.T) {
 	})
 
 	createIssueOptions := &CreateIssueOptions{
-		Title:       String("Title of issue"),
-		Description: String("This is description of an issue"),
+		Title:       Ptr("Title of issue"),
+		Description: Ptr("This is description of an issue"),
 	}
 
 	issue, _, err := client.Issues.CreateIssue("1", createIssueOptions)
@@ -602,8 +631,8 @@ func TestUpdateIssue(t *testing.T) {
 	})
 
 	updateIssueOpt := &UpdateIssueOptions{
-		Title:       String("Title of issue"),
-		Description: String("This is description of an issue"),
+		Title:       Ptr("Title of issue"),
+		Description: Ptr("This is description of an issue"),
 	}
 	issue, _, err := client.Issues.UpdateIssue(1, 5, updateIssueOpt)
 	if err != nil {
@@ -736,7 +765,7 @@ func TestSetTimeEstimate(t *testing.T) {
 	})
 
 	setTimeEstiOpt := &SetTimeEstimateOptions{
-		Duration: String("3h 30m"),
+		Duration: Ptr("3h 30m"),
 	}
 
 	timeState, _, err := client.Issues.SetTimeEstimate("1", 5, setTimeEstiOpt)
@@ -775,10 +804,12 @@ func TestAddSpentTime(t *testing.T) {
 	mux.HandleFunc("/api/v4/projects/1/issues/5/add_spent_time", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodPost)
 		testURL(t, r, "/api/v4/projects/1/issues/5/add_spent_time")
+		testBody(t, r, `{"duration":"1h","summary":"test"}`)
 		fmt.Fprint(w, `{"human_time_estimate": null, "human_total_time_spent": "1h", "time_estimate": 0, "total_time_spent": 3600}`)
 	})
 	addSpentTimeOpt := &AddSpentTimeOptions{
-		Duration: String("1h"),
+		Duration: Ptr("1h"),
+		Summary:  Ptr("test"),
 	}
 
 	timeState, _, err := client.Issues.AddSpentTime("1", 5, addSpentTimeOpt)
@@ -855,5 +886,77 @@ func TestGetIssueParticipants(t *testing.T) {
 
 	if !reflect.DeepEqual(want, issueParticipants) {
 		t.Errorf("Issues.GetIssueParticipants returned %+v, want %+v", issueParticipants, want)
+	}
+}
+
+func TestGetIssueMilestone(t *testing.T) {
+	mux, client := setup(t)
+
+	mux.HandleFunc("/api/v4/projects/1/issues/5", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodGet)
+		fmt.Fprint(w, `{"id":1, "description": "This is test project", "author" : {"id" : 1, "name": "snehal"}, "assignees":[{"id":1}],"merge_requests_count": 1,
+			"milestone": {"due_date": null, "project_id": 1, "state": "closed", "description": "test", "iid": 3, "id": 11, "title": "v3.0"}}`)
+	})
+
+	issue, _, err := client.Issues.GetIssue("1", 5)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	want := &Issue{
+		ID:                1,
+		Description:       "This is test project",
+		Author:            &IssueAuthor{ID: 1, Name: "snehal"},
+		Assignees:         []*IssueAssignee{{ID: 1}},
+		MergeRequestCount: 1,
+		Milestone: &Milestone{
+			DueDate:     nil,
+			ProjectID:   1,
+			State:       "closed",
+			Description: "test",
+			IID:         3,
+			ID:          11,
+			Title:       "v3.0",
+		},
+	}
+
+	if !reflect.DeepEqual(want, issue) {
+		t.Errorf("Issues.GetIssue returned %+v, want %+v", issue, want)
+	}
+}
+
+func TestGetIssueGroupMilestone(t *testing.T) {
+	mux, client := setup(t)
+
+	mux.HandleFunc("/api/v4/projects/1/issues/5", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodGet)
+		fmt.Fprint(w, `{"id":1, "description": "This is test project", "author" : {"id" : 1, "name": "snehal"}, "assignees":[{"id":1}],"merge_requests_count": 1,
+			"milestone": {"due_date": null, "group_id": 13, "state": "closed", "description": "test", "iid": 3, "id": 11, "title": "v3.0"}}`)
+	})
+
+	issue, _, err := client.Issues.GetIssue("1", 5)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	want := &Issue{
+		ID:                1,
+		Description:       "This is test project",
+		Author:            &IssueAuthor{ID: 1, Name: "snehal"},
+		Assignees:         []*IssueAssignee{{ID: 1}},
+		MergeRequestCount: 1,
+		Milestone: &Milestone{
+			DueDate:     nil,
+			GroupID:     13,
+			State:       "closed",
+			Description: "test",
+			IID:         3,
+			ID:          11,
+			Title:       "v3.0",
+		},
+	}
+
+	if !reflect.DeepEqual(want, issue) {
+		t.Errorf("Issues.GetIssue returned %+v, want %+v", issue, want)
 	}
 }

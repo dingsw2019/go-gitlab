@@ -48,7 +48,7 @@ func TestGetUser(t *testing.T) {
 		Name:         "John Smith",
 		State:        "active",
 		WebURL:       "http://localhost:3000/john_smith",
-		CreatedAt:    Time(time.Date(2012, time.May, 23, 8, 0o0, 58, 0, time.UTC)),
+		CreatedAt:    Ptr(time.Date(2012, time.May, 23, 8, 0o0, 58, 0, time.UTC)),
 		Bio:          "Bio of John Smith",
 		Location:     "USA",
 		PublicEmail:  "john@example.com",
@@ -87,7 +87,7 @@ func TestGetUserAdmin(t *testing.T) {
 		Name:             "John Smith",
 		State:            "active",
 		WebURL:           "http://localhost:3000/john_smith",
-		CreatedAt:        Time(time.Date(2012, time.May, 23, 8, 0, 58, 0, time.UTC)),
+		CreatedAt:        Ptr(time.Date(2012, time.May, 23, 8, 0, 58, 0, time.UTC)),
 		Bio:              "Bio of John Smith",
 		Location:         "USA",
 		PublicEmail:      "john@example.com",
@@ -105,11 +105,11 @@ func TestGetUserAdmin(t *testing.T) {
 		CanCreateGroup:   true,
 		CanCreateProject: true,
 		ProjectsLimit:    100,
-		CurrentSignInAt:  Time(time.Date(2012, time.June, 2, 6, 36, 55, 0, time.UTC)),
+		CurrentSignInAt:  Ptr(time.Date(2012, time.June, 2, 6, 36, 55, 0, time.UTC)),
 		CurrentSignInIP:  &currentSignInIP,
-		LastSignInAt:     Time(time.Date(2012, time.June, 1, 11, 41, 1, 0, time.UTC)),
+		LastSignInAt:     Ptr(time.Date(2012, time.June, 1, 11, 41, 1, 0, time.UTC)),
 		LastSignInIP:     &lastSignInIP,
-		ConfirmedAt:      Time(time.Date(2012, time.May, 23, 9, 0o5, 22, 0, time.UTC)),
+		ConfirmedAt:      Ptr(time.Date(2012, time.May, 23, 9, 0o5, 22, 0, time.UTC)),
 		TwoFactorEnabled: true,
 		Note:             "DMCA Request: 2018-11-05 | DMCA Violation | Abuse | https://gitlab.zendesk.com/agent/tickets/123",
 		Identities:       []*UserIdentity{{Provider: "github", ExternUID: "2435223452345"}},
@@ -583,6 +583,28 @@ func TestGetMemberships(t *testing.T) {
 	assert.Equal(t, want, memberships)
 }
 
+func TestGetUserAssociationsCount(t *testing.T) {
+	mux, client := setup(t)
+
+	path := "/api/v4/users/1/associations_count"
+
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodGet)
+		mustWriteHTTPResponse(t, w, "testdata/get_user_associations_count.json")
+	})
+
+	userAssociationsCount, _, err := client.Users.GetUserAssociationsCount(1)
+	require.NoError(t, err)
+
+	want := &UserAssociationsCount{
+		GroupsCount:        1,
+		ProjectsCount:      2,
+		IssuesCount:        3,
+		MergeRequestsCount: 4,
+	}
+	require.Equal(t, want, userAssociationsCount)
+}
+
 func TestGetSingleSSHKeyForUser(t *testing.T) {
 	mux, client := setup(t)
 
@@ -594,8 +616,7 @@ func TestGetSingleSSHKeyForUser(t *testing.T) {
 			"title": "Public key",
 			"key": "ssh-rsa AAAA...",
 			"created_at": "2014-08-01T14:47:39.080Z"
-		  }
-`)
+		}`)
 	})
 
 	sshKey, _, err := client.Users.GetSSHKeyForUser(1, 1)
@@ -630,4 +651,93 @@ func TestDisableUser2FA(t *testing.T) {
 	if err != nil {
 		t.Errorf("Users.DisableTwoFactor returned error: %v", err)
 	}
+}
+
+func TestCreateUserRunner(t *testing.T) {
+	mux, client := setup(t)
+
+	path := fmt.Sprintf("/%suser/runners", apiVersionPath)
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPost)
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(`
+    {
+      "id": 1234,
+      "token": "glrt-1234567890ABCD",
+      "token_expires_at":null
+    }`))
+	})
+
+	createRunnerOpts := &CreateUserRunnerOptions{
+		ProjectID:  Ptr(1),
+		RunnerType: Ptr("project_type"),
+	}
+
+	response, _, err := client.Users.CreateUserRunner(createRunnerOpts)
+	if err != nil {
+		t.Errorf("Users.CreateUserRunner returned an error: %v", err)
+	}
+
+	require.Equal(t, 1234, response.ID)
+	require.Equal(t, "glrt-1234567890ABCD", response.Token)
+	require.Equal(t, (*time.Time)(nil), response.TokenExpiresAt)
+}
+
+func TestCreatePersonalAccessTokenForCurrentUser(t *testing.T) {
+	mux, client := setup(t)
+
+	path := "/api/v4/user/personal_access_tokens"
+
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPost)
+		mustWriteHTTPResponse(t, w, "testdata/post_user_personal_access_tokens.json")
+	})
+
+	scopes := []string{"k8s_proxy"}
+	expiresAt := ISOTime(time.Date(2020, time.October, 15, 0, 0, 0, 0, time.UTC))
+	user, _, err := client.Users.CreatePersonalAccessTokenForCurrentUser(&CreatePersonalAccessTokenForCurrentUserOptions{
+		Name:      String("mytoken"),
+		Scopes:    &scopes,
+		ExpiresAt: &expiresAt,
+	})
+	require.NoError(t, err)
+
+	createdAt := time.Date(2020, time.October, 14, 11, 58, 53, 526000000, time.UTC)
+	want := &PersonalAccessToken{
+		ID:        3,
+		Name:      "mytoken",
+		Revoked:   false,
+		CreatedAt: &createdAt,
+		Scopes:    scopes,
+		UserID:    42,
+		Active:    true,
+		ExpiresAt: &expiresAt,
+		Token:     "glpat-aaaaaaaa-bbbbbbbbb",
+	}
+	require.Equal(t, want, user)
+}
+
+func TestCreateServiceAccountUser(t *testing.T) {
+	mux, client := setup(t)
+
+	path := "/api/v4/service_accounts"
+
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPost)
+		mustWriteHTTPResponse(t, w, "testdata/create_service_account_user.json")
+	})
+
+	user, _, err := client.Users.CreateServiceAccountUser()
+	require.NoError(t, err)
+
+	want := &User{
+		ID:        999,
+		Username:  "service_account_94e556c44d40d5a710ca59e3a0f40a3d",
+		Name:      "Service account user",
+		State:     "active",
+		Locked:    false,
+		AvatarURL: "http://localhost:3000/uploads/user/avatar/999/cd8.jpeg",
+		WebURL:    "http://localhost:3000/service_account_94e556c44d40d5a710ca59e3a0f40a3d",
+	}
+	require.Equal(t, want, user)
 }

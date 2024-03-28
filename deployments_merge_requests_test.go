@@ -20,13 +20,13 @@ func TestDeploymentMergeRequestsService_ListDeploymentMergeRequests(t *testing.T
 
 	opts := ListMergeRequestsOptions{
 		AssigneeID:             AssigneeID(UserIDAny),
-		WithLabelsDetails:      Bool(true),
-		WithMergeStatusRecheck: Bool(true),
+		WithLabelsDetails:      Ptr(true),
+		WithMergeStatusRecheck: Ptr(true),
 	}
 
 	mergeRequests, _, err := client.DeploymentMergeRequests.ListDeploymentMergeRequests(278964, 2, &opts)
 	require.NoError(t, err)
-	require.Equal(t, 20, len(mergeRequests))
+	require.Equal(t, 3, len(mergeRequests))
 
 	validStates := []string{"opened", "closed", "locked", "merged"}
 	detailedMergeStatuses := []string{

@@ -3,6 +3,7 @@ package gitlab
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"reflect"
 	"testing"
 )
@@ -77,8 +78,8 @@ func TestCreateGroup(t *testing.T) {
 		})
 
 	opt := &CreateGroupOptions{
-		Name: String("g"),
-		Path: String("g"),
+		Name: Ptr("g"),
+		Path: Ptr("g"),
 	}
 
 	group, _, err := client.Groups.CreateGroup(opt, nil)
@@ -122,7 +123,7 @@ func TestTransferSubGroup(t *testing.T) {
 		})
 
 	opt := &TransferSubGroupOptions{
-		GroupID: Int(2),
+		GroupID: Ptr(2),
 	}
 
 	group, _, err := client.Groups.TransferSubGroup(1, opt)
@@ -145,7 +146,7 @@ func TestDeleteGroup(t *testing.T) {
 			w.WriteHeader(http.StatusAccepted)
 		})
 
-	resp, err := client.Groups.DeleteGroup(1)
+	resp, err := client.Groups.DeleteGroup(1, nil)
 	if err != nil {
 		t.Errorf("Groups.DeleteGroup returned error: %v", err)
 	}
@@ -154,6 +155,48 @@ func TestDeleteGroup(t *testing.T) {
 	got := resp.StatusCode
 	if got != want {
 		t.Errorf("Groups.DeleteGroup returned %d, want %d", got, want)
+	}
+}
+
+func TestDeleteGroup_WithPermanentDelete(t *testing.T) {
+	mux, client := setup(t)
+	var params url.Values
+
+	mux.HandleFunc("/api/v4/groups/1",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, http.MethodDelete)
+			w.WriteHeader(http.StatusAccepted)
+
+			// Get the request parameters
+			parsedParams, err := url.ParseQuery(r.URL.RawQuery)
+			if err != nil {
+				t.Errorf("Groups.DeleteGroup returned error when parsing test parameters: %v", err)
+			}
+			params = parsedParams
+		})
+
+	resp, err := client.Groups.DeleteGroup(1, &DeleteGroupOptions{
+		PermanentlyRemove: Ptr(true),
+		FullPath:          Ptr("testPath"),
+	})
+
+	if err != nil {
+		t.Errorf("Groups.DeleteGroup returned error: %v", err)
+	}
+
+	// Test that our status code matches
+	if resp.StatusCode != http.StatusAccepted {
+		t.Errorf("Groups.DeleteGroup returned %d, want %d", resp.StatusCode, http.StatusAccepted)
+	}
+
+	// Test that "permanently_remove" is set to true
+	if params.Get("permanently_remove") != "true" {
+		t.Errorf("Groups.DeleteGroup returned %v, want %v", params.Get("permanently_remove"), true)
+	}
+
+	// Test that "full_path" is set to "testPath"
+	if params.Get("full_path") != "testPath" {
+		t.Errorf("Groups.DeleteGroup returned %v, want %v", params.Get("full_path"), "testPath")
 	}
 }
 
@@ -295,9 +338,9 @@ func TestAddGroupLDAPLink(t *testing.T) {
 		})
 
 	opt := &AddGroupLDAPLinkOptions{
-		CN:          String("gitlab_group_example_30"),
-		GroupAccess: AccessLevel(30),
-		Provider:    String("example_ldap_provider"),
+		CN:          Ptr("gitlab_group_example_30"),
+		GroupAccess: Ptr(AccessLevelValue(30)),
+		Provider:    Ptr("example_ldap_provider"),
 	}
 
 	link, _, err := client.Groups.AddGroupLDAPLink(1, opt)
@@ -330,9 +373,9 @@ func TestAddGroupLDAPLinkFilter(t *testing.T) {
 		})
 
 	opt := &AddGroupLDAPLinkOptions{
-		Filter:      String("(memberOf=example_group_dn)"),
-		GroupAccess: AccessLevel(30),
-		Provider:    String("example_ldap_provider"),
+		Filter:      Ptr("(memberOf=example_group_dn)"),
+		GroupAccess: Ptr(AccessLevelValue(30)),
+		Provider:    Ptr("example_ldap_provider"),
 	}
 
 	link, _, err := client.Groups.AddGroupLDAPLink(1, opt)
@@ -429,8 +472,8 @@ func TestAddGroupSAMLLink(t *testing.T) {
 		})
 
 	opt := &AddGroupSAMLLinkOptions{
-		SAMLGroupName: String("gitlab_group_example_developer"),
-		AccessLevel:   AccessLevel(DeveloperPermissions),
+		SAMLGroupName: Ptr("gitlab_group_example_developer"),
+		AccessLevel:   Ptr(DeveloperPermissions),
 	}
 
 	link, _, err := client.Groups.AddGroupSAMLLink(1, opt)
@@ -474,8 +517,8 @@ func TestShareGroupWithGroup(t *testing.T) {
 		})
 
 	group, _, err := client.Groups.ShareGroupWithGroup(1, &ShareGroupWithGroupOptions{
-		GroupID:     Int(1),
-		GroupAccess: AccessLevel(DeveloperPermissions),
+		GroupID:     Ptr(1),
+		GroupAccess: Ptr(DeveloperPermissions),
 	})
 	if err != nil {
 		t.Errorf("Groups.ShareGroupWithGroup returned error: %v", err)
@@ -513,9 +556,9 @@ func TestCreateGroupWithIPRestrictionRanges(t *testing.T) {
 		})
 
 	opt := &CreateGroupOptions{
-		Name:                String("g"),
-		Path:                String("g"),
-		IPRestrictionRanges: String("192.168.0.0/24"),
+		Name:                Ptr("g"),
+		Path:                Ptr("g"),
+		IPRestrictionRanges: Ptr("192.168.0.0/24"),
 	}
 
 	group, _, err := client.Groups.CreateGroup(opt, nil)
@@ -539,7 +582,7 @@ func TestUpdateGroupWithIPRestrictionRanges(t *testing.T) {
 		})
 
 	group, _, err := client.Groups.UpdateGroup(1, &UpdateGroupOptions{
-		IPRestrictionRanges: String("192.168.0.0/24"),
+		IPRestrictionRanges: Ptr("192.168.0.0/24"),
 	})
 	if err != nil {
 		t.Errorf("Groups.UpdateGroup returned error: %v", err)

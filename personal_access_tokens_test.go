@@ -31,7 +31,7 @@ func TestListPersonalAccessTokensWithUserFilter(t *testing.T) {
 		mustWriteHTTPResponse(t, w, "testdata/list_personal_access_tokens_with_user_filter.json")
 	})
 
-	personalAccessTokens, _, err := client.PersonalAccessTokens.ListPersonalAccessTokens(&ListPersonalAccessTokensOptions{UserID: Int(1), ListOptions: ListOptions{Page: 1, PerPage: 10}})
+	personalAccessTokens, _, err := client.PersonalAccessTokens.ListPersonalAccessTokens(&ListPersonalAccessTokensOptions{UserID: Ptr(1), ListOptions: ListOptions{Page: 1, PerPage: 10}})
 	if err != nil {
 		t.Errorf("PersonalAccessTokens.ListPersonalAccessTokens returned error: %v", err)
 	}
@@ -147,7 +147,117 @@ func TestListPersonalAccessTokensNoUserFilter(t *testing.T) {
 	}
 }
 
-func TestDeletePersonalAccessToken(t *testing.T) {
+func TestGetSinglePersonalAccessTokenByID(t *testing.T) {
+	mux, client := setup(t)
+
+	mux.HandleFunc("/api/v4/personal_access_tokens/1", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodGet)
+		mustWriteHTTPResponse(t, w, "testdata/list_personal_access_tokens_single.json")
+	})
+
+	token, _, err := client.PersonalAccessTokens.GetSinglePersonalAccessTokenByID(1)
+	if err != nil {
+		t.Errorf("PersonalAccessTokens.RevokePersonalAccessToken returned error: %v", err)
+	}
+
+	createdAt, err := time.Parse(time.RFC3339, "2020-07-23T14:31:47.729Z")
+	if err != nil {
+		t.Errorf("PersonalAccessTokens.ListPersonalAccessTokens returned error: %v", err)
+	}
+
+	lastUsedAt, err := time.Parse(time.RFC3339, "2021-10-06T17:58:37.550Z")
+	if err != nil {
+		t.Errorf("PersonalAccessTokens.ListPersonalAccessTokens returned error: %v", err)
+	}
+
+	want := &PersonalAccessToken{
+		ID:         1,
+		Name:       "Test Token",
+		Revoked:    false,
+		CreatedAt:  &createdAt,
+		Scopes:     []string{"api"},
+		UserID:     1,
+		LastUsedAt: &lastUsedAt,
+		Active:     true,
+	}
+
+	if !reflect.DeepEqual(want, token) {
+		t.Errorf("PersonalAccessTokens.ListPersonalAccessTokens returned %+v, want %+v", token, want)
+	}
+}
+
+func TestGetSinglePersonalAccessToken(t *testing.T) {
+	mux, client := setup(t)
+
+	mux.HandleFunc("/api/v4/personal_access_tokens/self", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodGet)
+		mustWriteHTTPResponse(t, w, "testdata/list_personal_access_tokens_single.json")
+	})
+
+	token, _, err := client.PersonalAccessTokens.GetSinglePersonalAccessToken()
+	if err != nil {
+		t.Errorf("PersonalAccessTokens.RevokePersonalAccessToken returned error: %v", err)
+	}
+
+	createdAt, err := time.Parse(time.RFC3339, "2020-07-23T14:31:47.729Z")
+	if err != nil {
+		t.Errorf("PersonalAccessTokens.ListPersonalAccessTokens returned error: %v", err)
+	}
+
+	lastUsedAt, err := time.Parse(time.RFC3339, "2021-10-06T17:58:37.550Z")
+	if err != nil {
+		t.Errorf("PersonalAccessTokens.ListPersonalAccessTokens returned error: %v", err)
+	}
+
+	want := &PersonalAccessToken{
+		ID:         1,
+		Name:       "Test Token",
+		Revoked:    false,
+		CreatedAt:  &createdAt,
+		Scopes:     []string{"api"},
+		UserID:     1,
+		LastUsedAt: &lastUsedAt,
+		Active:     true,
+	}
+
+	if !reflect.DeepEqual(want, token) {
+		t.Errorf("PersonalAccessTokens.ListPersonalAccessTokens returned %+v, want %+v", token, want)
+	}
+}
+
+func TestRotatePersonalAccessToken(t *testing.T) {
+	mux, client := setup(t)
+	mux.HandleFunc("/api/v4/personal_access_tokens/42/rotate", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPost)
+		mustWriteHTTPResponse(t, w, "testdata/rotate_personal_access_token.json")
+	})
+
+	createdAt, _ := time.Parse(time.RFC3339, "2023-08-01T15:00:00.000Z")
+	expiration := ISOTime(time.Date(2023, time.August, 15, 0, 0, 0, 0, time.UTC))
+	opts := &RotatePersonalAccessTokenOptions{ExpiresAt: &expiration}
+	rotatedToken, _, err := client.PersonalAccessTokens.RotatePersonalAccessToken(42, opts)
+	if err != nil {
+		t.Errorf("PersonalAccessTokens.RotatePersonalAccessToken returned error: %v", err)
+	}
+
+	want := &PersonalAccessToken{
+		ID:        42,
+		UserID:    1337,
+		Name:      "Rotated Token",
+		Scopes:    []string{"api"},
+		ExpiresAt: &expiration,
+		CreatedAt: &createdAt,
+		Active:    true,
+		Revoked:   false,
+		Token:     "s3cr3t",
+	}
+
+	if !reflect.DeepEqual(want, rotatedToken) {
+		t.Errorf("PersonalAccessTokens.RotatePersonalAccessTokens returned %+v, want %+v", rotatedToken, want)
+	}
+}
+
+func TestRevokePersonalAccessToken(t *testing.T) {
 	mux, client := setup(t)
 
 	mux.HandleFunc("/api/v4/personal_access_tokens/1", func(w http.ResponseWriter, r *http.Request) {

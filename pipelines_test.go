@@ -33,7 +33,7 @@ func TestListProjectPipelines(t *testing.T) {
 		fmt.Fprint(w, `[{"id":1},{"id":2}]`)
 	})
 
-	opt := &ListProjectPipelinesOptions{Ref: String("master")}
+	opt := &ListProjectPipelinesOptions{Ref: Ptr("master")}
 	piplines, _, err := client.Pipelines.ListProjectPipelines(1, opt)
 	if err != nil {
 		t.Errorf("Pipelines.ListProjectPipelines returned error: %v", err)
@@ -100,63 +100,53 @@ func TestGetPipelineTestReport(t *testing.T) {
 		TotalTime:    61.502,
 		TotalCount:   9,
 		SuccessCount: 5,
-		FailedCount:  0,
-		SkippedCount: 0,
 		ErrorCount:   4,
-		TestSuites: []PipelineTestSuites{
+		TestSuites: []*PipelineTestSuites{
 			{
 				Name:         "Failing",
 				TotalTime:    60.494,
 				TotalCount:   8,
 				SuccessCount: 4,
-				FailedCount:  0,
-				SkippedCount: 0,
 				ErrorCount:   4,
-				TestCases: []PipelineTestCases{
+				TestCases: []*PipelineTestCases{
 					{
 						Status:        "error",
 						Name:          "Error testcase 1",
 						Classname:     "MyClassOne",
 						File:          "/path/file.ext",
 						ExecutionTime: 19.987,
-						SystemOutput:  "output message\n\noutput message 2",
+						SystemOutput:  "Failed test",
 						StackTrace:    "java.lang.Exception: Stack trace\nat java.base/java.lang.Thread.dumpStack(Thread.java:1383)",
 						AttachmentURL: "http://foo.bar",
-						RecentFailures: RecentFailures{
+						RecentFailures: &RecentFailures{
 							Count:      10,
 							BaseBranch: "master",
 						},
 					},
 					{
-						Status:         "error",
-						Name:           "Error testcase 2",
-						Classname:      "MyClass",
-						File:           "",
-						ExecutionTime:  19.984,
-						SystemOutput:   "",
-						StackTrace:     "",
-						AttachmentURL:  "",
-						RecentFailures: RecentFailures{},
+						Status:        "error",
+						Name:          "Error testcase 2",
+						Classname:     "MyClass",
+						ExecutionTime: 19.984,
+						SystemOutput: map[string]interface{}{
+							"message": "Failed test",
+							"type":    "MultipleExceptionError",
+						},
 					},
 					{
-						Status:        "error",
-						Name:          "Error testcase 3",
-						Classname:     "MyClass",
-						File:          "",
-						ExecutionTime: 0.0,
-						SystemOutput:  "Undefined message",
-						StackTrace:    "",
-						AttachmentURL: "",
+						Status:    "error",
+						Name:      "Error testcase 3",
+						Classname: "MyClass",
+						SystemOutput: []interface{}{
+							"Failed test a",
+							"Failed test b",
+						},
 					},
 					{
 						Status:        "success",
 						Name:          "Succes full testcase",
 						Classname:     "MyClass",
-						File:          "",
 						ExecutionTime: 19.7799999999999985,
-						SystemOutput:  "",
-						StackTrace:    "",
-						AttachmentURL: "",
 					},
 				},
 			},
@@ -165,18 +155,11 @@ func TestGetPipelineTestReport(t *testing.T) {
 				TotalTime:    1.008,
 				TotalCount:   1,
 				SuccessCount: 1,
-				FailedCount:  0,
-				SkippedCount: 0,
-				ErrorCount:   0,
-				TestCases: []PipelineTestCases{{
+				TestCases: []*PipelineTestCases{{
 					Status:        "success",
 					Name:          "Succesfull testcase",
 					Classname:     "MyClass",
-					File:          "",
 					ExecutionTime: 1.008,
-					SystemOutput:  "",
-					StackTrace:    "",
-					AttachmentURL: "",
 				}},
 			},
 		},
@@ -211,7 +194,7 @@ func TestGetLatestPipeline_WithRef(t *testing.T) {
 	})
 
 	pipeline, _, err := client.Pipelines.GetLatestPipeline(1, &GetLatestPipelineOptions{
-		Ref: String("abc"),
+		Ref: Ptr("abc"),
 	})
 
 	assert.NoError(t, err)
@@ -226,7 +209,7 @@ func TestCreatePipeline(t *testing.T) {
 		fmt.Fprint(w, `{"id":1, "status":"pending"}`)
 	})
 
-	opt := &CreatePipelineOptions{Ref: String("master")}
+	opt := &CreatePipelineOptions{Ref: Ptr("master")}
 	pipeline, _, err := client.Pipelines.CreatePipeline(1, opt)
 	if err != nil {
 		t.Errorf("Pipelines.CreatePipeline returned error: %v", err)

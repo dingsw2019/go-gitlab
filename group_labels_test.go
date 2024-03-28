@@ -33,8 +33,8 @@ func TestCreateGroupGroupLabel(t *testing.T) {
 	})
 
 	l := &CreateGroupLabelOptions{
-		Name:  String("My / GroupLabel"),
-		Color: String("#11FF22"),
+		Name:  Ptr("My / GroupLabel"),
+		Color: Ptr("#11FF22"),
 	}
 	label, _, err := client.GroupLabels.CreateGroupLabel("1", l)
 	if err != nil {
@@ -46,7 +46,20 @@ func TestCreateGroupGroupLabel(t *testing.T) {
 	}
 }
 
-func TestDeleteGroupLabel(t *testing.T) {
+func TestDeleteGroupLabelByID(t *testing.T) {
+	mux, client := setup(t)
+
+	mux.HandleFunc("/api/v4/groups/1/labels/1", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodDelete)
+	})
+
+	_, err := client.GroupLabels.DeleteGroupLabel("1", "1", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func TestDeleteGroupLabelByName(t *testing.T) {
 	mux, client := setup(t)
 
 	mux.HandleFunc("/api/v4/groups/1/labels", func(w http.ResponseWriter, r *http.Request) {
@@ -54,10 +67,10 @@ func TestDeleteGroupLabel(t *testing.T) {
 	})
 
 	label := &DeleteGroupLabelOptions{
-		Name: String("My / GroupLabel"),
+		Name: Ptr("My / GroupLabel"),
 	}
 
-	_, err := client.GroupLabels.DeleteGroupLabel("1", label)
+	_, err := client.GroupLabels.DeleteGroupLabel("1", nil, label)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -72,10 +85,10 @@ func TestUpdateGroupLabel(t *testing.T) {
 	})
 
 	l := &UpdateGroupLabelOptions{
-		Name:        String("My / GroupLabel"),
-		NewName:     String("New / GroupLabel"),
-		Color:       String("#11FF23"),
-		Description: String("This is updated label"),
+		Name:        Ptr("My / GroupLabel"),
+		NewName:     Ptr("New / GroupLabel"),
+		Color:       Ptr("#11FF23"),
+		Description: Ptr("This is updated label"),
 	}
 
 	label, resp, err := client.GroupLabels.UpdateGroupLabel("1", l)

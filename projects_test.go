@@ -18,13 +18,17 @@ package gitlab
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestListProjects(t *testing.T) {
@@ -36,13 +40,13 @@ func TestListProjects(t *testing.T) {
 	})
 
 	opt := &ListProjectsOptions{
-		ListOptions: ListOptions{2, 3},
-		Archived:    Bool(true),
-		OrderBy:     String("name"),
-		Sort:        String("asc"),
-		Search:      String("query"),
-		Simple:      Bool(true),
-		Visibility:  Visibility(PublicVisibility),
+		ListOptions: ListOptions{Page: 2, PerPage: 3},
+		Archived:    Ptr(true),
+		OrderBy:     Ptr("name"),
+		Sort:        Ptr("asc"),
+		Search:      Ptr("query"),
+		Simple:      Ptr(true),
+		Visibility:  Ptr(PublicVisibility),
 	}
 
 	projects, _, err := client.Projects.ListProjects(opt)
@@ -65,13 +69,13 @@ func TestListUserProjects(t *testing.T) {
 	})
 
 	opt := &ListProjectsOptions{
-		ListOptions: ListOptions{2, 3},
-		Archived:    Bool(true),
-		OrderBy:     String("name"),
-		Sort:        String("asc"),
-		Search:      String("query"),
-		Simple:      Bool(true),
-		Visibility:  Visibility(PublicVisibility),
+		ListOptions: ListOptions{Page: 2, PerPage: 3},
+		Archived:    Ptr(true),
+		OrderBy:     Ptr("name"),
+		Sort:        Ptr("asc"),
+		Search:      Ptr("query"),
+		Simple:      Ptr(true),
+		Visibility:  Ptr(PublicVisibility),
 	}
 
 	projects, _, err := client.Projects.ListUserProjects(1, opt)
@@ -85,6 +89,35 @@ func TestListUserProjects(t *testing.T) {
 	}
 }
 
+func TestListUserContributedProjects(t *testing.T) {
+	mux, client := setup(t)
+
+	mux.HandleFunc("/api/v4/users/1/contributed_projects", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodGet)
+		fmt.Fprint(w, `[{"id":1},{"id":2}]`)
+	})
+
+	opt := &ListProjectsOptions{
+		ListOptions: ListOptions{Page: 2, PerPage: 3},
+		Archived:    Bool(true),
+		OrderBy:     String("name"),
+		Sort:        String("asc"),
+		Search:      String("query"),
+		Simple:      Bool(true),
+		Visibility:  Visibility(PublicVisibility),
+	}
+
+	projects, _, err := client.Projects.ListUserContributedProjects(1, opt)
+	if err != nil {
+		t.Errorf("Projects.ListUserContributedProjects returned error: %v", err)
+	}
+
+	want := []*Project{{ID: 1}, {ID: 2}}
+	if !reflect.DeepEqual(want, projects) {
+		t.Errorf("Projects.ListUserContributedProjects returned %+v, want %+v", projects, want)
+	}
+}
+
 func TestListUserStarredProjects(t *testing.T) {
 	mux, client := setup(t)
 
@@ -94,13 +127,13 @@ func TestListUserStarredProjects(t *testing.T) {
 	})
 
 	opt := &ListProjectsOptions{
-		ListOptions: ListOptions{2, 3},
-		Archived:    Bool(true),
-		OrderBy:     String("name"),
-		Sort:        String("asc"),
-		Search:      String("query"),
-		Simple:      Bool(true),
-		Visibility:  Visibility(PublicVisibility),
+		ListOptions: ListOptions{Page: 2, PerPage: 3},
+		Archived:    Ptr(true),
+		OrderBy:     Ptr("name"),
+		Sort:        Ptr("asc"),
+		Search:      Ptr("query"),
+		Simple:      Ptr(true),
+		Visibility:  Ptr(PublicVisibility),
 	}
 
 	projects, _, err := client.Projects.ListUserStarredProjects(1, opt)
@@ -124,8 +157,8 @@ func TestListProjectsUsersByID(t *testing.T) {
 	})
 
 	opt := &ListProjectUserOptions{
-		ListOptions: ListOptions{2, 3},
-		Search:      String("query"),
+		ListOptions: ListOptions{Page: 2, PerPage: 3},
+		Search:      Ptr("query"),
 	}
 
 	projects, _, err := client.Projects.ListProjectsUsers(1, opt)
@@ -149,8 +182,8 @@ func TestListProjectsUsersByName(t *testing.T) {
 	})
 
 	opt := &ListProjectUserOptions{
-		ListOptions: ListOptions{2, 3},
-		Search:      String("query"),
+		ListOptions: ListOptions{Page: 2, PerPage: 3},
+		Search:      Ptr("query"),
 	}
 
 	projects, _, err := client.Projects.ListProjectsUsers("namespace/name", opt)
@@ -174,8 +207,8 @@ func TestListProjectsGroupsByID(t *testing.T) {
 	})
 
 	opt := &ListProjectGroupOptions{
-		ListOptions: ListOptions{2, 3},
-		Search:      String("query"),
+		ListOptions: ListOptions{Page: 2, PerPage: 3},
+		Search:      Ptr("query"),
 	}
 
 	groups, _, err := client.Projects.ListProjectsGroups(1, opt)
@@ -199,8 +232,8 @@ func TestListProjectsGroupsByName(t *testing.T) {
 	})
 
 	opt := &ListProjectGroupOptions{
-		ListOptions: ListOptions{2, 3},
-		Search:      String("query"),
+		ListOptions: ListOptions{Page: 2, PerPage: 3},
+		Search:      Ptr("query"),
 	}
 
 	groups, _, err := client.Projects.ListProjectsGroups("namespace/name", opt)
@@ -223,14 +256,14 @@ func TestListOwnedProjects(t *testing.T) {
 	})
 
 	opt := &ListProjectsOptions{
-		ListOptions: ListOptions{2, 3},
-		Archived:    Bool(true),
-		OrderBy:     String("name"),
-		Sort:        String("asc"),
-		Search:      String("query"),
-		Simple:      Bool(true),
-		Owned:       Bool(true),
-		Visibility:  Visibility(PublicVisibility),
+		ListOptions: ListOptions{Page: 2, PerPage: 3},
+		Archived:    Ptr(true),
+		OrderBy:     Ptr("name"),
+		Sort:        Ptr("asc"),
+		Search:      Ptr("query"),
+		Simple:      Ptr(true),
+		Owned:       Ptr(true),
+		Visibility:  Ptr(PublicVisibility),
 	}
 
 	projects, _, err := client.Projects.ListProjects(opt)
@@ -244,6 +277,53 @@ func TestListOwnedProjects(t *testing.T) {
 	}
 }
 
+func TestEditProject(t *testing.T) {
+	mux, client := setup(t)
+
+	var developerAccessLevel AccessControlValue = "developer"
+	opt := &EditProjectOptions{
+		CIRestrictPipelineCancellationRole: Ptr(developerAccessLevel),
+	}
+
+	// Store whether we've set the restrict value in our edit properly
+	restrictValueSet := false
+
+	mux.HandleFunc("/api/v4/projects/1", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPut)
+
+		// Check that our request properly included ci_restrict_pipeline_cancellation_role
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("Unable to read body properly. Error: %v", err)
+		}
+
+		// Set the value to check if our value is included
+		restrictValueSet = strings.Contains(string(body), "ci_restrict_pipeline_cancellation_role")
+
+		// Print the start of the mock example from https://docs.gitlab.com/ee/api/projects.html#edit-project
+		// including the attribute we edited
+		fmt.Fprint(w, `
+		{
+			"id": 1,
+			"description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+			"description_html": "<p data-sourcepos=\"1:1-1:56\" dir=\"auto\">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>",
+			"default_branch": "main",
+			"visibility": "private",
+			"ssh_url_to_repo": "git@example.com:diaspora/diaspora-project-site.git",
+			"http_url_to_repo": "http://example.com/diaspora/diaspora-project-site.git",
+			"web_url": "http://example.com/diaspora/diaspora-project-site",
+			"readme_url": "http://example.com/diaspora/diaspora-project-site/blob/main/README.md",
+			"ci_restrict_pipeline_cancellation_role": "developer"
+		}`)
+	})
+
+	project, resp, err := client.Projects.EditProject(1, opt)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, true, restrictValueSet)
+	assert.Equal(t, developerAccessLevel, project.CIRestrictPipelineCancellationRole)
+}
+
 func TestListStarredProjects(t *testing.T) {
 	mux, client := setup(t)
 
@@ -253,14 +333,14 @@ func TestListStarredProjects(t *testing.T) {
 	})
 
 	opt := &ListProjectsOptions{
-		ListOptions: ListOptions{2, 3},
-		Archived:    Bool(true),
-		OrderBy:     String("name"),
-		Sort:        String("asc"),
-		Search:      String("query"),
-		Simple:      Bool(true),
-		Starred:     Bool(true),
-		Visibility:  Visibility(PublicVisibility),
+		ListOptions: ListOptions{Page: 2, PerPage: 3},
+		Archived:    Ptr(true),
+		OrderBy:     Ptr("name"),
+		Sort:        Ptr("asc"),
+		Search:      Ptr("query"),
+		Simple:      Ptr(true),
+		Starred:     Ptr(true),
+		Visibility:  Ptr(PublicVisibility),
 	}
 
 	projects, _, err := client.Projects.ListProjects(opt)
@@ -291,6 +371,9 @@ func TestGetProjectByID(t *testing.T) {
 			  "name_regex_keep": null,
 			  "next_run_at": "2020-01-07T21:42:58.658Z"
 			},
+			"ci_forward_deployment_enabled": true,
+			"ci_forward_deployment_rollback_allowed": true,
+			"ci_restrict_pipeline_cancellation_role": "developer",
 			"packages_enabled": false,
 			"build_coverage_regex": "Total.*([0-9]{1,3})%"
 		  }`)
@@ -304,8 +387,11 @@ func TestGetProjectByID(t *testing.T) {
 			Cadence:   "7d",
 			NextRunAt: &wantTimestamp,
 		},
-		PackagesEnabled:    false,
-		BuildCoverageRegex: `Total.*([0-9]{1,3})%`,
+		PackagesEnabled:                    false,
+		BuildCoverageRegex:                 `Total.*([0-9]{1,3})%`,
+		CIForwardDeploymentEnabled:         true,
+		CIForwardDeploymentRollbackAllowed: true,
+		CIRestrictPipelineCancellationRole: "developer",
 	}
 
 	project, _, err := client.Projects.GetProject(1, nil)
@@ -371,7 +457,7 @@ func TestGetProjectWithOptions(t *testing.T) {
 		UploadsSize:           6523619,
 	}}
 
-	project, _, err := client.Projects.GetProject(1, &GetProjectOptions{Statistics: Bool(true)})
+	project, _, err := client.Projects.GetProject(1, &GetProjectOptions{Statistics: Ptr(true)})
 	if err != nil {
 		t.Fatalf("Projects.GetProject returns an error: %v", err)
 	}
@@ -390,8 +476,8 @@ func TestCreateProject(t *testing.T) {
 	})
 
 	opt := &CreateProjectOptions{
-		Name:        String("n"),
-		MergeMethod: MergeMethod(RebaseMerge),
+		Name:        Ptr("n"),
+		MergeMethod: Ptr(RebaseMerge),
 	}
 
 	project, _, err := client.Projects.CreateProject(opt)
@@ -540,13 +626,13 @@ func TestListProjectForks(t *testing.T) {
 	})
 
 	opt := &ListProjectsOptions{}
-	opt.ListOptions = ListOptions{2, 3}
-	opt.Archived = Bool(true)
-	opt.OrderBy = String("name")
-	opt.Sort = String("asc")
-	opt.Search = String("query")
-	opt.Simple = Bool(true)
-	opt.Visibility = Visibility(PublicVisibility)
+	opt.ListOptions = ListOptions{Page: 2, PerPage: 3}
+	opt.Archived = Ptr(true)
+	opt.OrderBy = Ptr("name")
+	opt.Sort = Ptr("asc")
+	opt.Search = Ptr("query")
+	opt.Simple = Ptr(true)
+	opt.Visibility = Ptr(PublicVisibility)
 
 	projects, _, err := client.Projects.ListProjectForks("namespace/name", opt)
 	if err != nil {
@@ -567,8 +653,8 @@ func TestShareProjectWithGroup(t *testing.T) {
 	})
 
 	opt := &ShareWithGroupOptions{
-		GroupID:     Int(1),
-		GroupAccess: AccessLevel(AccessLevelValue(50)),
+		GroupID:     Ptr(1),
+		GroupAccess: Ptr(AccessLevelValue(50)),
 	}
 
 	_, err := client.Projects.ShareProjectWithGroup(1, opt)
@@ -647,7 +733,7 @@ func TestChangeApprovalConfiguration(t *testing.T) {
 	})
 
 	opt := &ChangeApprovalConfigurationOptions{
-		ApprovalsBeforeMerge: Int(3),
+		ApprovalsBeforeMerge: Ptr(3),
 	}
 
 	approvals, _, err := client.Projects.ChangeApprovalConfiguration(1, opt)
@@ -741,9 +827,9 @@ func TestForkProject(t *testing.T) {
 	})
 
 	project, _, err := client.Projects.ForkProject(1, &ForkProjectOptions{
-		NamespaceID: Int(namespaceID),
-		Name:        String(name),
-		Path:        String(path),
+		NamespaceID: Ptr(namespaceID),
+		Name:        Ptr(name),
+		Path:        Ptr(path),
 	})
 	if err != nil {
 		t.Errorf("Projects.ForkProject returned error: %v", err)
@@ -1187,10 +1273,11 @@ func TestCreateProjectApprovalRule(t *testing.T) {
 	})
 
 	opt := &CreateProjectLevelRuleOptions{
-		Name:              String("security"),
-		ApprovalsRequired: Int(3),
+		Name:              Ptr("security"),
+		ApprovalsRequired: Ptr(3),
 		UserIDs:           &[]int{5, 50},
 		GroupIDs:          &[]int{5},
+		ReportType:        String("code_coverage"),
 	}
 
 	rule, _, err := client.Projects.CreateProjectApprovalRule(1, opt)
@@ -1337,8 +1424,8 @@ func TestCreateProjectApprovalRuleEligibleApprovers(t *testing.T) {
 	})
 
 	opt := &CreateProjectLevelRuleOptions{
-		Name:              String("Any name"),
-		ApprovalsRequired: Int(1),
+		Name:              Ptr("Any name"),
+		ApprovalsRequired: Ptr(1),
 	}
 
 	rule, _, err := client.Projects.CreateProjectApprovalRule(1, opt)
@@ -1360,4 +1447,85 @@ func TestCreateProjectApprovalRuleEligibleApprovers(t *testing.T) {
 	if !reflect.DeepEqual(want, rule) {
 		t.Errorf("Projects.CreateProjectApprovalRule returned %+v, want %+v", rule, want)
 	}
+}
+
+func TestProjectModelsOptionalMergeAttribute(t *testing.T) {
+	// Create a `CreateProjectOptions` struct, ensure that merge attribute doesn't serialize
+	jsonString, err := json.Marshal(&CreateProjectOptions{
+		Name: Ptr("testProject"),
+	})
+	if err != nil {
+		t.Fatal("Failed to marshal object", err)
+	}
+	assert.False(t, strings.Contains(string(jsonString), "only_allow_merge_if_all_status_checks_passed"))
+
+	// Test the same thing but for `EditProjectOptions` struct
+	jsonString, err = json.Marshal(&EditProjectOptions{
+		Name: Ptr("testProject"),
+	})
+	if err != nil {
+		t.Fatal("Failed to marshal object", err)
+	}
+	assert.False(t, strings.Contains(string(jsonString), "only_allow_merge_if_all_status_checks_passed"))
+}
+
+// Test that the "CustomWebhookTemplate" serializes properly
+func TestProjectAddWebhook_CustomTemplate(t *testing.T) {
+	mux, client := setup(t)
+	customWebhookSet := false
+
+	mux.HandleFunc("/api/v4/projects/1/hooks",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, http.MethodPost)
+			w.WriteHeader(http.StatusCreated)
+
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("Unable to read body properly. Error: %v", err)
+			}
+			customWebhookSet = strings.Contains(string(body), "custom_webhook_template")
+
+			fmt.Fprint(w, `{
+				"custom_webhook_template": "testValue"
+			}`)
+		},
+	)
+
+	hook, resp, err := client.Projects.AddProjectHook(1, &AddProjectHookOptions{
+		CustomWebhookTemplate: Ptr(`{"example":"{{object_kind}}"}`),
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusCreated, resp.StatusCode)
+	assert.Equal(t, true, customWebhookSet)
+	assert.Equal(t, "testValue", hook.CustomWebhookTemplate)
+}
+
+// Test that the "CustomWebhookTemplate" serializes properly when editing
+func TestProjectEditWebhook_CustomTemplate(t *testing.T) {
+	mux, client := setup(t)
+	customWebhookSet := false
+
+	mux.HandleFunc("/api/v4/projects/1/hooks/1",
+		func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, http.MethodPut)
+			w.WriteHeader(http.StatusOK)
+
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("Unable to read body properly. Error: %v", err)
+			}
+			customWebhookSet = strings.Contains(string(body), "custom_webhook_template")
+
+			fmt.Fprint(w, "{}")
+		},
+	)
+
+	_, resp, err := client.Projects.EditProjectHook(1, 1, &EditProjectHookOptions{
+		CustomWebhookTemplate: Ptr(`{"example":"{{object_kind}}"}`),
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, true, customWebhookSet)
 }

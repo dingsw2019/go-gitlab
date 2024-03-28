@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 )
 
@@ -57,6 +56,7 @@ type Snippet struct {
 		Path   string `json:"path"`
 		RawURL string `json:"raw_url"`
 	} `json:"files"`
+	RepositoryStorage string `json:"repository_storage"`
 }
 
 func (s Snippet) String() string {
@@ -85,7 +85,7 @@ func (s *SnippetsService) ListSnippets(opt *ListSnippetsOptions, options ...Requ
 		return nil, resp, err
 	}
 
-	return ps, resp, err
+	return ps, resp, nil
 }
 
 // GetSnippet gets a single snippet
@@ -106,7 +106,7 @@ func (s *SnippetsService) GetSnippet(snippet int, options ...RequestOptionFunc) 
 		return nil, resp, err
 	}
 
-	return ps, resp, err
+	return ps, resp, nil
 }
 
 // SnippetContent gets a single snippet’s raw contents.
@@ -135,7 +135,7 @@ func (s *SnippetsService) SnippetContent(snippet int, options ...RequestOptionFu
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/snippets.html#snippet-repository-file-content
 func (s *SnippetsService) SnippetFileContent(snippet int, ref, filename string, options ...RequestOptionFunc) ([]byte, *Response, error) {
-	filepath := url.QueryEscape(filename)
+	filepath := PathEscape(filename)
 	u := fmt.Sprintf("snippets/%d/files/%s/%s/raw", snippet, ref, filepath)
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil, options)
@@ -152,11 +152,11 @@ func (s *SnippetsService) SnippetFileContent(snippet int, ref, filename string, 
 	return b.Bytes(), resp, err
 }
 
-// SnippetFile represents the object that is used to create snippets
+// CreateSnippetFileOptions represents the create snippet file options.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/snippets.html#create-new-snippet
-type SnippetFile struct {
+type CreateSnippetFileOptions struct {
 	FilePath *string `url:"file_path,omitempty" json:"file_path,omitempty"`
 	Content  *string `url:"content,omitempty" json:"content,omitempty"`
 }
@@ -166,12 +166,12 @@ type SnippetFile struct {
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/snippets.html#create-new-snippet
 type CreateSnippetOptions struct {
-	Title       *string          `url:"title,omitempty" json:"title,omitempty"`
-	FileName    *string          `url:"file_name,omitempty" json:"file_name,omitempty"`
-	Description *string          `url:"description,omitempty" json:"description,omitempty"`
-	Content     *string          `url:"content,omitempty" json:"content,omitempty"`
-	Visibility  *VisibilityValue `url:"visibility,omitempty" json:"visibility,omitempty"`
-	Files       *[]*SnippetFile  `url:"files,omitempty" json:"files,omitempty"`
+	Title       *string                      `url:"title,omitempty" json:"title,omitempty"`
+	FileName    *string                      `url:"file_name,omitempty" json:"file_name,omitempty"`
+	Description *string                      `url:"description,omitempty" json:"description,omitempty"`
+	Content     *string                      `url:"content,omitempty" json:"content,omitempty"`
+	Visibility  *VisibilityValue             `url:"visibility,omitempty" json:"visibility,omitempty"`
+	Files       *[]*CreateSnippetFileOptions `url:"files,omitempty" json:"files,omitempty"`
 }
 
 // CreateSnippet creates a new snippet. The user must have permission
@@ -191,7 +191,18 @@ func (s *SnippetsService) CreateSnippet(opt *CreateSnippetOptions, options ...Re
 		return nil, resp, err
 	}
 
-	return ps, resp, err
+	return ps, resp, nil
+}
+
+// UpdateSnippetFileOptions represents the update snippet file options.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/snippets.html#update-snippet
+type UpdateSnippetFileOptions struct {
+	Action       *string `url:"action,omitempty" json:"action,omitempty"`
+	FilePath     *string `url:"file_path,omitempty" json:"file_path,omitempty"`
+	Content      *string `url:"content,omitempty" json:"content,omitempty"`
+	PreviousPath *string `url:"previous_path,omitempty" json:"previous_path,omitempty"`
 }
 
 // UpdateSnippetOptions represents the available UpdateSnippet() options.
@@ -199,11 +210,12 @@ func (s *SnippetsService) CreateSnippet(opt *CreateSnippetOptions, options ...Re
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/snippets.html#update-snippet
 type UpdateSnippetOptions struct {
-	Title       *string          `url:"title,omitempty" json:"title,omitempty"`
-	FileName    *string          `url:"file_name,omitempty" json:"file_name,omitempty"`
-	Description *string          `url:"description,omitempty" json:"description,omitempty"`
-	Content     *string          `url:"content,omitempty" json:"content,omitempty"`
-	Visibility  *VisibilityValue `url:"visibility,omitempty" json:"visibility,omitempty"`
+	Title       *string                      `url:"title,omitempty" json:"title,omitempty"`
+	FileName    *string                      `url:"file_name,omitempty" json:"file_name,omitempty"`
+	Description *string                      `url:"description,omitempty" json:"description,omitempty"`
+	Content     *string                      `url:"content,omitempty" json:"content,omitempty"`
+	Visibility  *VisibilityValue             `url:"visibility,omitempty" json:"visibility,omitempty"`
+	Files       *[]*UpdateSnippetFileOptions `url:"files,omitempty" json:"files,omitempty"`
 }
 
 // UpdateSnippet updates an existing snippet. The user must have
@@ -225,7 +237,7 @@ func (s *SnippetsService) UpdateSnippet(snippet int, opt *UpdateSnippetOptions, 
 		return nil, resp, err
 	}
 
-	return ps, resp, err
+	return ps, resp, nil
 }
 
 // DeleteSnippet deletes an existing snippet. This is an idempotent
@@ -267,5 +279,35 @@ func (s *SnippetsService) ExploreSnippets(opt *ExploreSnippetsOptions, options .
 		return nil, resp, err
 	}
 
-	return ps, resp, err
+	return ps, resp, nil
+}
+
+// ListAllSnippetsOptions represents the available ListAllSnippets() options.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/snippets.html#list-all-snippets
+type ListAllSnippetsOptions struct {
+	ListOptions
+	CreatedAfter      *ISOTime `url:"created_after,omitempty" json:"created_after,omitempty"`
+	CreatedBefore     *ISOTime `url:"created_before,omitempty" json:"created_before,omitempty"`
+	RepositoryStorage *string  `url:"repository_storage,omitempty" json:"repository_storage,omitempty"`
+}
+
+// ListAllSnippets gets all snippets the current user has access to.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/snippets.html#list-all-snippets
+func (s *SnippetsService) ListAllSnippets(opt *ListAllSnippetsOptions, options ...RequestOptionFunc) ([]*Snippet, *Response, error) {
+	req, err := s.client.NewRequest(http.MethodGet, "snippets/all", opt, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var ps []*Snippet
+	resp, err := s.client.Do(req, &ps)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return ps, resp, nil
 }

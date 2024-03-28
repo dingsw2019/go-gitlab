@@ -161,6 +161,7 @@ func TestGroupIssueBoardsService_CreateGroupIssueBoard(t *testing.T) {
 			WebURL: "http://example.com/groups/documentcloud",
 		},
 		Milestone: nil,
+		Labels:    []*GroupLabel{},
 		Lists:     []*BoardList{},
 	}
 
@@ -203,6 +204,24 @@ func TestGroupIssueBoardsService_GetGroupIssueBoard(t *testing.T) {
 			  "id": 12,
 			  "title": "10.0"
 			},
+			"labels": [
+				{
+					"id":1749,
+					"name":"my-scope1",
+					"description":null,
+					"description_html":"",
+					"text_color":"#FFFFFF",
+					"color":"#6699cc"
+				},
+				{
+					"id":1747,
+					"name":"my-scope2",
+					"description":null,
+					"description_html":"",
+					"text_color":"#FFFFFF",
+					"color":"#FF0000"
+				}
+			],
 			"lists" : [
 			  {
 				"id" : 1,
@@ -250,6 +269,20 @@ func TestGroupIssueBoardsService_GetGroupIssueBoard(t *testing.T) {
 			ProjectID:   0,
 			Title:       "10.0",
 			Description: "",
+		},
+		Labels: []*GroupLabel{
+			{
+				ID:        1749,
+				Name:      "my-scope1",
+				TextColor: "#FFFFFF",
+				Color:     "#6699cc",
+			},
+			{
+				ID:        1747,
+				Name:      "my-scope2",
+				TextColor: "#FFFFFF",
+				Color:     "#FF0000",
+			},
 		},
 		Lists: []*BoardList{
 			{
@@ -358,11 +391,19 @@ func TestGroupIssueBoardsService_UpdateIssueBoard(t *testing.T) {
 		Milestone: &Milestone{
 			ID:          44,
 			IID:         1,
-			ProjectID:   0,
+			GroupID:     5,
 			Title:       "Group Milestone",
 			Description: "Group Milestone Desc",
 			State:       "active",
 			WebURL:      "http://example.com/groups/documentcloud/-/milestones/1",
+		},
+		Labels: []*GroupLabel{
+			{
+				ID:          11,
+				Name:        "GroupLabel",
+				Color:       "#428BCA",
+				Description: "",
+			},
 		},
 		Lists: []*BoardList{},
 	}
@@ -580,6 +621,7 @@ func TestGroupIssueBoardsService_CreateGroupIssueBoardList(t *testing.T) {
 		Milestone: &Milestone{
 			ID:          7,
 			IID:         3,
+			GroupID:     12,
 			Title:       "Milestone with due date",
 			Description: "",
 			State:       "active",

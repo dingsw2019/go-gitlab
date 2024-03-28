@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/xanzy/go-gitlab"
 )
@@ -46,7 +47,7 @@ func patListExampleWithUserFilter() {
 
 	opt := &gitlab.ListPersonalAccessTokensOptions{
 		ListOptions: gitlab.ListOptions{Page: 1, PerPage: 10},
-		UserID:      gitlab.Int(12345),
+		UserID:      gitlab.Ptr(12345),
 	}
 
 	personalAccessTokens, _, err := git.PersonalAccessTokens.ListPersonalAccessTokens(opt)
@@ -60,4 +61,22 @@ func patListExampleWithUserFilter() {
 	}
 
 	log.Printf("Found personal access tokens: %s", data)
+}
+
+func patRotateExample() {
+	git, err := gitlab.NewClient("glpat-123xyz")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	expiry := gitlab.ISOTime(time.Date(2023, time.August, 15, 0, 0, 0, 0, time.UTC))
+	opts := &gitlab.RotatePersonalAccessTokenOptions{
+		ExpiresAt: &expiry,
+	}
+	newPersonalAccessToken, _, err := git.PersonalAccessTokens.RotatePersonalAccessToken(12345, opts)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Your new token is %s\n", newPersonalAccessToken.Token)
 }
